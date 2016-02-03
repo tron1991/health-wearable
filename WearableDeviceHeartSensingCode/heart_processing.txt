@@ -1,0 +1,315 @@
+ using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+using System.IO.Ports;
+
+namespace ElderlyCareSystem
+{
+    public partial class ElderlyCareSystem : Form
+    {
+        public ElderlyCareSystem()
+        {
+            InitializeComponent();
+        }
+
+        private static int main_counter = 0;
+        private static int rfid_counter = 0;
+        private static string input_arduino = "";
+        private static string input_rfid = "";
+        private static List<int> acc_x = new List<int>();
+        private static List<int> acc_y = new List<int>();
+        private static List<int> acc_z = new List<int>();
+        private static List<int> emergency_button = new List<int>();
+        private static List<int> heart_rate = new List<int>();
+        private static List<string> rfid = new List<string>();
+        private static int maxH = 0;
+        private static int minH; 
+        
+        private void button_connect_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPort_arduino.IsOpen)
+                {
+                    serialPort_arduino.Open();
+                    MessageBox.Show("BT Connected");
+                    serialPort_rfid.Open();
+                    serialPort_rfid.DataReceived += new SerialDataReceivedEventHandler(serialPort_rfid_DataReceived);
+                    
+                    button_connect.Enabled = false;
+                    button_disconnect.Enabled = true;
+                   
+                    checkBox_arduino.Checked = true;
+                    checkBox_rfid.Checked = true;
+                }
+                else 
+                {
+                    MessageBox.Show("Error", "Error Message");
+                }
+            }
+            catch(UnauthorizedAccessException ex)
+            {
+                MessageBox.Show(ex.Message, "Error Message");
+            }
+        }
+
+        private void button_disconnect_Click(object sender, EventArgs e)
+        {
+            serialPort_arduino.Close();
+            serialPort_rfid.Close();
+            checkBox_arduino.Checked = false;
+            checkBox_rfid.Checked = false;
+
+            clear_display();
+            button_connect.Enabled = true;
+            button_disconnect.Enabled = false;
+        }
+
+        private void serialPort_arduino_DataReceived(object sender, System.IO.Ports.SerialDataReceivedEventArgs e)
+        {
+            try
+            {
+                input_arduino += serialPort_arduino.ReadExisting();
+                MessageBox.Show(input_arduino);
+                this.Invoke(new EventHandler(input_parsing));
+               
+            }
+            catch (System.TimeoutException ex)
+            {
+                MessageBox.Show(ex.Message, "Error Message");
+            }
+        }
+
+        private void serialPort_rfid_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            rfidCheck updateDisplayRfid = new rfidCheck(store_data_rfid);
+            textBox_main_rfid.Invoke(updateDisplayRfid);
+        }
+
+        private void input_parsing(object sender, EventArgs e)
+        {
+           
+            string x_temp, y_temp, z_temp, b_temp, h_temp;
+            x_temp = ""; y_temp = ""; z_temp = ""; b_temp = ""; h_temp = "";
+            MessageBox.Show("Length of input: " + input_arduino.Length);
+            if (input_arduino.Length > 17)
+            {
+                x_temp = input_arduino.Substring(1, ((input_arduino.IndexOf('Y') - 1)));
+                input_arduino = input_arduino.Substring(input_arduino.IndexOf('Y'));
+              
+                y_temp = input_arduino.Substring(1, ((input_arduino.IndexOf('Z') - 1)));
+                input_arduino = input_arduino.Substring(input_arduino.IndexOf('Z'));
+             
+                z_temp = input_arduino.Substring(1, ((input_arduino.IndexOf('H') - 1)));
+                input_arduino = input_arduino.Substring(input_arduino.IndexOf('H'));
+               
+                h_temp = input_arduino.Substring(1, ((input_arduino.IndexOf('B') - 1)));
+                input_arduino = input_arduino.Substring(input_arduino.IndexOf('B'));
+                
+                b_temp = input_arduino.Substring(1, 1);
+                input_arduino = input_arduino.Substring(2);
+
+                store_data_arduino(Convert.ToInt32(x_temp), Convert.ToInt32(y_temp), Convert.ToInt32(z_temp), Convert.ToInt32(h_temp), Convert.ToInt32(b_temp));
+                update_display_arduino(x_temp, y_temp, z_temp, h_temp, b_temp);
+            }
+        }
+
+        public void store_data_rfid()
+        {
+            input_rfid = input_rfid + serialPort_rfid.ReadExisting();
+            string current_place = getPlace(input_rfid);
+            if (input_rfid.Length == 12)
+            {
+                rfid.Add(current_place);
+                rfid_counter++;
+                update_display_rfid();
+                System.Media.SystemSounds.Beep.Play();
+                serialPort_rfid.DtrEnable = false;
+                DateTimeOffset timeOut = DateTime.Now.AddMilliseconds(1500);
+                while (DateTime.Now < timeOut)
+                {
+                    Application.DoEvents();
+                }
+                input_rfid = serialPort_rfid.ReadExisting();
+                serialPort_rfid.DiscardInBuffer();
+                input_rfid = "";
+                serialPort_rfid.DtrEnable = true;
+            }
+        }
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+Add the following options in the interface 
+1) Man Option and Woman Option checkbox
+2) Beta Blocker checkbox and Thyroid checkbox
+
+
+private void medication_betablocker(string h) //setup lowers pulse by 5HB/min
+        {
+          int high_set_point = 100;
+     	  int low_set_point = 50;
+          textBox_main_heartRate.Text = h - 5; //5 is lowered because of the drug
+          
+        }
+
+private void medication_thyroid(string h)  //setup increases pulse by 5HB/min
+        {
+          int high_set_point = 100;
+		  int low_set_point = 50;
+          textBox_main_heartRate.Text = h + 5; //5 is increased because of the drug
+        }
+
+private void man_heart(string h) //setup for male ( hR/min average is 3HR/min lower then women)
+        {
+            
+            int high_set_point = 100;
+			int low_set_point = 50;
+			int average_set_point = 70;
+            textBox_main_heartRate.Text = h;
+            textBox_heart_rate_max.Text = heart_rate.Max().ToString();
+            textBox_heart_rate_min.Text = heart_rate.Min().ToString();
+        }
+
+
+private void woman_heart(string h)//setup for female ( hR/min average is 3HR/min higher then men)
+        {
+            int high_set_point = 100;
+			int low_set_point = 50;
+			int average_set_point = 73;
+            textBox_main_heartRate.Text = h;
+            textBox_heart_rate_max.Text = heart_rate.Max().ToString();
+            textBox_heart_rate_min.Text = heart_rate.Min().ToString();        
+        }
+
+
+private void heart_processing(string h)
+        {
+            //what every condition is enabled by the user from the above 4 functions will change the initial setup here
+			//setup for medical, man, women
+            textBox_main_heartRate.Text = h;
+
+			//Conditons - Emergencies
+				if (high_set_point > h)
+					for 7 seconds or 7 time values
+					print Tachycardia Danger
+				
+				if (low_set_point < h)
+					for 7 seconds or 7 time values
+					print Bradycardia Danger
+
+				if( h == 0)
+					for 3 seconds
+					print No pulse
+					check if wireless is sending...if not sending wireless then battery is gone..no heart attack
+
+				if (h irregular)
+					for 10 seconds
+					print heart function is unstable
+
+            textBox_heart_rate_max.Text = heart_rate.Max().ToString();
+            textBox_heart_rate_min.Text = heart_rate.Min().ToString();
+            textBox_current_acc_x.Text = x;
+        }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+        private void update_display_arduino(string x, string y, string z, string h, string b)
+        {
+            textBox_main_acc_x.Text = x;
+            textBox_main_acc_y.Text = y;
+            textBox_main_acc_z.Text = z;
+            textBox_main_heartRate.Text = h;
+            textBox_heart_rate_max.Text = heart_rate.Max().ToString();
+            textBox_heart_rate_min.Text = heart_rate.Min().ToString();
+            textBox_current_acc_x.Text = x;
+            textBox_current_acc_y.Text = y;
+            textBox_current_acc_z.Text = z;
+            textBox_current_heartRate.Text = h;
+            listBox_acc_x.TopIndex = listBox_acc_x.Items.Count - 1;
+            listBox_acc_y.TopIndex = listBox_acc_y.Items.Count - 1;
+            listBox_acc_z.TopIndex = listBox_acc_z.Items.Count - 1;
+            listBox_heartRate.TopIndex = listBox_heartRate.Items.Count - 1;
+            
+            if (main_counter > 0)
+            {
+                listBox_heartRate.Items.Add(heart_rate[main_counter - 1].ToString());
+                listBox_acc_x.Items.Add(acc_x[main_counter - 1].ToString());
+                listBox_acc_y.Items.Add(acc_y[main_counter - 1].ToString());
+                listBox_acc_z.Items.Add(acc_z[main_counter - 1].ToString());
+            }
+            
+            if (Convert.ToInt32(b) == 1)
+            {
+                System.Media.SystemSounds.Exclamation.Play();
+                textBox_main_emergency.Text = "ALERT";
+                textBox_main_emergency.BackColor = Color.Red;
+            }
+            else if(Convert.ToInt32(b) == 0)
+            {
+                textBox_main_emergency.BackColor = Color.White;
+                textBox_main_emergency.Text = "";
+            }
+        }
+
+        private void update_display_rfid()
+        {
+            textBox_main_rfid.Text = rfid[rfid_counter - 1];
+            textBox_current_rfid.Text = rfid[rfid_counter - 1];
+            
+            if (rfid_counter > 0)
+            {
+                listBox_rfid.TopIndex = listBox_rfid.Items.Count - 1;
+                listBox_rfid.Items.Add(rfid[rfid_counter - 1]);
+            }
+        }
+
+        public string getPlace(string place)
+        {
+            place = place.Trim();
+            if (place == "8400356857") place = "Bedroom";
+            else if (place == "8400355EB5") place = "Outside";
+            else if (place == "8400342147") place = "Bathroom";
+            else if (place == "840034439D") place = "Kitchen";
+            
+            return place;
+        }
+
+        private void store_data_arduino(int x, int y, int z, int h, int b)
+        {
+            acc_x.Add(x);
+            acc_y.Add(y);
+            acc_z.Add(z);
+            heart_rate.Add(h);
+            emergency_button.Add(b);
+            main_counter++;
+        }
+
+        private void clear_display()
+        {
+            textBox_main_acc_x.Text = "";
+            textBox_main_acc_y.Text = "";
+            textBox_main_acc_z.Text = "";
+            textBox_main_heartRate.Text = "";
+            textBox_main_emergency.Text = "";
+            listBox_acc_x.Items.Clear();
+            listBox_acc_y.Items.Clear();
+            listBox_acc_z.Items.Clear();
+            listBox_heartRate.Items.Clear();
+            listBox_rfid.Items.Clear();
+            textBox_main_rfid.Text = "";
+            textBox_current_acc_x.Text = "";
+            textBox_current_acc_y.Text = "";
+            textBox_current_acc_z.Text = "";
+            textBox_current_heartRate.Text = "";
+            textBox_current_rfid.Text = "";
+        }
+
+        public delegate void rfidCheck();
+
+    }
+}
