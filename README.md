@@ -8,13 +8,13 @@ This project is aimed at developing an automated system to tend to the needs of 
 [![Youtube](https://raw.githubusercontent.com/tron1991/health-wearable/master/nana_youtube.png)](https://youtu.be/9TSWEAj5TAA)
 
 ##Architecture of Device
-![Architecture](https://raw.githubusercontent.com/tron1991/health-wearable/master/nana_layout.png)
+![Architecture](https://raw.githubusercontent.com/tron1991/health-wearable/master/nana_layout.jpg)
 
 ##Product Designs
 
 ![Nana](https://raw.githubusercontent.com/tron1991/health-wearable/master/Pictures/home.png)
 
-![Nana](https://raw.githubusercontent.com/tron1991/health-wearable/master/Pictures/pulse1.png)
+![Nana](https://raw.githubusercontent.com/tron1991/health-wearable/master/Pictures/pulse_1.png)
 
 ![Nana](https://raw.githubusercontent.com/tron1991/health-wearable/master/Pictures/relay.png)
 
